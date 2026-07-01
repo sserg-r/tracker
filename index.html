@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b2a">
+<title>Трекер побед</title>
+<style>
+  :root{
+    --bg:#0d1b2a;          /* глубокий сине-ночной — воздух перед рассветом */
+    --bg2:#132a3e;
+    --ink:#eaf2f4;         /* светлый текст */
+    --muted:#7fa0ad;       /* приглушённый */
+    --breath:#5fd3c4;      /* бирюза дыхания — акцент удержания */
+    --breath-dim:#2c6b66;
+    --slip:#c98a6a;        /* тёплый терракот — срыв, без агрессии */
+    --line:rgba(255,255,255,.08);
+    --card:rgba(255,255,255,.04);
+    --font: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg2), var(--bg) 60%);
+    color:var(--ink);font-family:var(--font);
+    min-height:100dvh;overflow-x:hidden;
+    padding:env(safe-area-inset-top) 20px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+
+  header{padding:26px 4px 10px;}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;}
+  h1{font-size:26px;font-weight:650;margin:0;letter-spacing:-.01em;}
+  h1 .accent{color:var(--breath);}
+
+  /* ——— Полоска накопления ——— */
+  .gauge{margin:22px 0 8px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;}
+  .gauge .big{font-size:40px;font-weight:700;line-height:1;letter-spacing:-.02em;}
+  .gauge .big small{font-size:16px;font-weight:500;color:var(--muted);letter-spacing:0;}
+  .gauge .sub{color:var(--muted);font-size:13px;margin-top:6px;}
+  .barwrap{margin-top:16px;height:12px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;}
+  .bar{height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--breath-dim),var(--breath));
+    transition:width 1.1s cubic-bezier(.22,1,.36,1);}
+  .barlabel{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--muted);}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0 4px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center;}
+  .stat b{display:block;font-size:22px;font-weight:700;}
+  .stat span{font-size:11px;color:var(--muted);letter-spacing:.04em;}
+
+  /* ——— Главная кнопка ——— */
+  .cta{margin:22px 0 8px;width:100%;border:0;border-radius:20px;padding:20px;
+    background:linear-gradient(180deg,#183a4f,#122c3e);color:var(--ink);
+    font-size:17px;font-weight:600;font-family:var(--font);
+    border:1px solid var(--line);cursor:pointer;transition:transform .12s,filter .2s;}
+  .cta:active{transform:scale(.985);filter:brightness(1.12);}
+  .cta small{display:block;font-weight:400;color:var(--muted);font-size:12.5px;margin-top:4px;}
+
+  .log-recent{margin-top:16px;}
+  .log-recent h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px 4px;font-weight:600;}
+  .entry{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);margin-bottom:8px;}
+  .dot{width:9px;height:9px;border-radius:99px;flex:0 0 auto;}
+  .dot.held{background:var(--breath);box-shadow:0 0 10px var(--breath-dim);}
+  .dot.slip{background:var(--slip);}
+  .entry .meta{flex:1;min-width:0;}
+  .entry .meta .top{font-size:14px;}
+  .entry .meta .bot{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .empty{color:var(--muted);font-size:13.5px;text-align:center;padding:18px;line-height:1.5;}
+
+  /* ——— Оверлей ——— */
+  .overlay{position:fixed;inset:0;background:rgba(8,17,26,.86);backdrop-filter:blur(10px);
+    display:none;align-items:center;justify-content:center;padding:24px;z-index:50;}
+  .overlay.on{display:flex;}
+  .sheet{width:100%;max-width:440px;}
+
+  /* Дыхание */
+  .breathe{text-align:center;}
+  .orb{width:180px;height:180px;margin:6px auto 0;border-radius:99px;position:relative;
+    background:radial-gradient(circle at 50% 45%,var(--breath),var(--breath-dim) 70%);
+    box-shadow:0 0 60px rgba(95,211,196,.25);
+    transform:scale(.62);}
+  .orb.run{animation:breathe var(--dur,11s) ease-in-out infinite;}
+  @keyframes breathe{
+    0%{transform:scale(.62);}          /* выдох — покой */
+    36%{transform:scale(1);}            /* вдох 4 */
+    50%{transform:scale(1);}            /* задержка 2 */
+    100%{transform:scale(.62);}         /* выдох 6 + пауза */
+  }
+  .phase{font-size:22px;font-weight:600;margin:22px 0 4px;min-height:28px;letter-spacing:.01em;}
+  .breathe .hint{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:14px;padding:12px 18px;font-size:14px;font-family:var(--font);cursor:pointer;}
+
+  /* Форма */
+  .form{display:none;}
+  .form.on{display:block;}
+  .form h3{font-size:19px;margin:0 0 4px;font-weight:650;}
+  .form .q{color:var(--muted);font-size:13.5px;margin:0 0 18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:9px 13px;border-radius:11px;background:rgba(255,255,255,.05);border:1px solid var(--line);
+    color:var(--ink);font-size:13.5px;cursor:pointer;font-family:var(--font);transition:.15s;}
+  .chip.sel{background:var(--breath);color:#06231f;border-color:var(--breath);font-weight:600;}
+  input[type=text]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--ink);font-size:15px;font-family:var(--font);}
+  input[type=text]::placeholder{color:var(--muted);}
+  .decide{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;}
+  .decide button{padding:16px;border-radius:15px;font-size:15.5px;font-weight:650;font-family:var(--font);cursor:pointer;border:1px solid var(--line);transition:transform .1s;}
+  .decide button:active{transform:scale(.97);}
+  .held-btn{background:var(--breath);color:#06231f;border-color:var(--breath);}
+  .slip-btn{background:transparent;color:var(--slip);border-color:var(--slip);}
+  .savedmsg{text-align:center;padding:30px 10px;}
+  .savedmsg .mk{font-size:40px;}
+  .savedmsg p{font-size:16px;margin:12px 0 0;}
+  .savedmsg small{color:var(--muted);}
+
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.6;padding-bottom:8px;}
+  footer a{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Дыхание вместо дыма</p>
+    <h1>Трекер <span class="accent">побед</span></h1>
+  </header>
+
+  <section class="gauge">
+    <div class="big" id="lifeReturned">0<small> мин возвращено</small></div>
+    <div class="sub" id="gaugeSub">Каждое удержание возвращает время себе будущему.</div>
+    <div class="barwrap"><div class="bar" id="bar"></div></div>
+    <div class="barlabel"><span id="barLeft">старт</span><span id="barRight">следующая ступень</span></div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><b id="stStreak">0</b><span>серия удержаний</span></div>
+    <div class="stat"><b id="stHeld">0</b><span>всего удержано</span></div>
+    <div class="stat"><b id="stDays">0</b><span>дней в деле</span></div>
+  </div>
+
+  <button class="cta" id="openBtn">
+    Пришёл позыв
+    <small>Тап → вдох-выдох → отметка. Займёт минуту.</small>
+  </button>
+
+  <div class="log-recent">
+    <h2>Последнее</h2>
+    <div id="log"></div>
+  </div>
+
+  <footer>
+    Данные хранятся только в этом телефоне. Ничего никуда не отправляется.<br>
+    Инструмент — подпорка. Бросаешь ты, а не он.
+  </footer>
+</div>
+
+<!-- Оверлей -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+
+    <!-- Дыхание -->
+    <div class="breathe" id="breatheStep">
+      <div class="orb" id="orb"></div>
+      <div class="phase" id="phase">Готов?</div>
+      <div class="hint" id="bhint">Три круга дыхания. Импульс не переживает паузу.</div>
+      <button class="ghost" id="skipBreath">Пропустить →</button>
+    </div>
+
+    <!-- Форма -->
+    <div class="form" id="formStep">
+      <h3>Что происходит?</h3>
+      <p class="q">Быстро, одним касанием. Это данные о твоих триггерах.</p>
+
+      <div class="field">
+        <label>Где</label>
+        <div class="chips" id="placeChips"></div>
+      </div>
+      <div class="field">
+        <label>Что чувствую</label>
+        <div class="chips" id="feelChips"></div>
+      </div>
+      <div class="field">
+        <label>Связано с чем (по желанию)</label>
+        <input type="text" id="eventInput" placeholder="совещание, дедлайн, кофе, скука…">
+      </div>
+
+      <div class="decide">
+        <button class="held-btn" id="heldBtn">Удержался</button>
+        <button class="slip-btn" id="slipBtn">Закурил</button>
+      </div>
+    </div>
+
+    <!-- Сохранено -->
+    <div class="form savedmsg" id="savedStep">
+      <div class="mk" id="savedMk">🫁</div>
+      <p id="savedTxt"></p>
+      <small id="savedSub"></small>
+      <div style="margin-top:22px"><button class="ghost" id="closeBtn">Закрыть</button></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY="tracker_pobed_v1";
+  var MIN_PER_HELD=15;              // возвращённые минуты за одно удержание (= цена сигареты)
+  var STEPS=[30,60,120,240,480,960,1920]; // ступени полоски в минутах
+
+  var PLACES=["Работа","Дом","Улица","Магазин","Транспорт","У друзей"];
+  var FEELS=["Тревога","Гнев","Скука","Вакуум в груди","Предвкушение","Стресс","Радость","Привычка"];
+
+  function load(){ try{return JSON.parse(localStorage.getItem(KEY))||{entries:[]};}catch(e){return {entries:[]};} }
+  function save(s){ localStorage.setItem(KEY,JSON.stringify(s)); }
+  var state=load();
+
+  var $=function(id){return document.getElementById(id);};
+
+  // ——— рендер чипов ———
+  function chips(host,arr){
+    host.innerHTML="";
+    arr.forEach(function(t){
+      var b=document.createElement("button");
+      b.className="chip";b.textContent=t;
+      b.onclick=function(){b.classList.toggle("sel");};
+      host.appendChild(b);
+    });
+  }
+  function selected(host){
+    return Array.prototype.slice.call(host.querySelectorAll(".chip.sel")).map(function(c){return c.textContent;});
+  }
+
+  // ——— статистика ———
+  function stats(){
+    var held=state.entries.filter(function(e){return e.held;}).length;
+    // серия: подряд удержаний с конца
+    var streak=0;
+    for(var i=state.entries.length-1;i>=0;i--){ if(state.entries[i].held)streak++; else break; }
+    var days=0;
+    if(state.entries.length){
+      var first=state.entries[0].t, now=Date.now();
+      days=Math.max(1,Math.ceil((now-first)/86400000));
+    }
+    return {held:held,streak:streak,days:days,returned:held*MIN_PER_HELD};
+  }
+  function fmt(min){
+    if(min<60)return min+"";
+    var h=Math.floor(min/60),m=min%60;
+    if(h<24)return h+" ч"+(m?" "+m+"м":"");
+    var d=Math.floor(h/24);return d+" дн "+(h%24)+"ч";
+  }
+
+  function render(){
+    var s=stats();
+    $("stStreak").textContent=s.streak;
+    $("stHeld").textContent=s.held;
+    $("stDays").textContent=s.days;
+
+    $("lifeReturned").innerHTML=fmt(s.returned)+"<small> возвращено жизни</small>";
+
+    // ступень
+    var step=STEPS[0], idx=0;
+    for(var i=0;i<STEPS.length;i++){ if(s.returned>=STEPS[i]){idx=i;} }
+    var lower=(idx===0&&s.returned<STEPS[0])?0:STEPS[idx];
+    var upper=STEPS[Math.min(idx+1,STEPS.length-1)];
+    if(s.returned>=STEPS[STEPS.length-1]){ lower=STEPS[STEPS.length-1]; upper=lower; }
+    var pct= upper>lower ? Math.min(100,((s.returned-lower)/(upper-lower))*100) : 100;
+    $("bar").style.width=pct+"%";
+    $("barLeft").textContent=fmt(lower)+" мин";
+    $("barRight").textContent= upper>lower ? "до "+fmt(upper)+" мин" : "максимум";
+
+    if(s.held===0){ $("gaugeSub").textContent="Каждое удержание возвращает "+MIN_PER_HELD+" минут себе будущему."; }
+    else { $("gaugeSub").textContent="Удержаний: "+s.held+". Это уже "+fmt(s.returned)+" возвращённой жизни."; }
+
+    // лог
+    var log=$("log");
+    if(!state.entries.length){ log.innerHTML='<div class="empty">Пока пусто.<br>Первый позыв — первая запись.</div>'; return; }
+    log.innerHTML="";
+    state.entries.slice(-6).reverse().forEach(function(e){
+      var row=document.createElement("div");row.className="entry";
+      var d=new Date(e.t);
+      var hh=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+      var day=d.getDate()+"."+("0"+(d.getMonth()+1)).slice(-2);
+      var tags=[].concat(e.place||[],e.feel||[]);
+      if(e.event)tags.push(e.event);
+      row.innerHTML='<span class="dot '+(e.held?"held":"slip")+'"></span>'+
+        '<div class="meta"><div class="top">'+(e.held?"Удержался":"Закурил")+'</div>'+
+        '<div class="bot">'+day+" "+hh+(tags.length?" · "+tags.join(", "):"")+'</div></div>';
+      log.appendChild(row);
+    });
+  }
+
+  // ——— дыхание ———
+  var orb=$("orb"),phase=$("phase"),cycles=0;
+  var breathTimer=null;
+  function runBreath(){
+    cycles=0;orb.classList.add("run");orb.style.setProperty("--dur","12s");
+    var seq=[["Вдох",0,3800],["Задержка",3800,2000],["Выдох",5800,6200]]; // 4-2-6 в масштабе цикла
+    function loop(){
+      cycles++;
+      if(cycles>3){ finishBreath(); return; }
+      seq.forEach(function(p){ setTimeout(function(){ phase.textContent=p[0]; }, p[1]); });
+      setTimeout(loop,12000);
+    }
+    phase.textContent="Вдох";$("bhint").textContent="Круг "+1+" из 3";
+    // счётчик кругов
+    var c=1;var ci=setInterval(function(){ c++; if(c>3){clearInterval(ci);return;} $("bhint").textContent="Круг "+c+" из 3"; },12000);
+    loop();
+  }
+  function finishBreath(){ orb.classList.remove("run"); toForm(); }
+
+  // ——— навигация оверлея ———
+  function open(){
+    $("overlay").classList.add("on");
+    $("breatheStep").style.display="block";
+    $("formStep").classList.remove("on");
+    $("savedStep").classList.remove("on");
+    phase.textContent="Готов?";$("bhint").textContent="Три круга дыхания. Импульс не переживает паузу.";
+    setTimeout(runBreath,500);
+  }
+  function toForm(){
+    $("breatheStep").style.display="none";
+    $("formStep").classList.add("on");
+    // сброс выбора
+    Array.prototype.forEach.call(document.querySelectorAll(".chip.sel"),function(c){c.classList.remove("sel");});
+    $("eventInput").value="";
+  }
+  function record(held){
+    state.entries.push({
+      t:Date.now(),held:held,
+      place:selected($("placeChips")),
+      feel:selected($("feelChips")),
+      event:$("eventInput").value.trim()
+    });
+    save(state);render();
+    $("formStep").classList.remove("on");
+    $("savedStep").classList.add("on");
+    if(held){
+      $("savedMk").textContent="🫁";
+      $("savedTxt").textContent="Удержался. +"+MIN_PER_HELD+" минут себе будущему.";
+      $("savedSub").textContent="Серия удержаний: "+stats().streak;
+    }else{
+      $("savedMk").textContent="•";
+      $("savedTxt").textContent="Записано. Одна — это одна.";
+      $("savedSub").textContent="Не обнуление. Следующий выбор снова твой — закрой дверь за ней.";
+    }
+  }
+  function close(){ $("overlay").classList.remove("on"); }
+
+  // ——— события ———
+  $("openBtn").onclick=open;
+  $("skipBreath").onclick=function(){ orb.classList.remove("run"); toForm(); };
+  $("heldBtn").onclick=function(){ record(true); };
+  $("slipBtn").onclick=function(){ record(false); };
+  $("closeBtn").onclick=close;
+
+  chips($("placeChips"),PLACES);
+  chips($("feelChips"),FEELS);
+  render();
+})();
+</script>
+</body>
+</html>
